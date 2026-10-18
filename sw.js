@@ -1,5 +1,5 @@
 // Keeps the app itself available offline. Audio streams from its host and is not cached here.
-const CACHE = "sai-bhajans-v1";
+const CACHE = "sai-bhajans-v2";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "bhajans.json", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
 
