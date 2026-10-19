@@ -1,6 +1,6 @@
 // Keeps the app available offline. Songs are saved by app.js in the "sai-audio" cache;
 // this worker also serves them from there, so a saved song plays with no internet.
-const CACHE = "sai-bhajans-v6";
+const CACHE = "sai-bhajans-v7";
 const AUDIO_CACHE = "sai-audio";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "bhajans.json", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];

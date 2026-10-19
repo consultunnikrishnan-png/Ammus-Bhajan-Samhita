@@ -388,6 +388,12 @@
     catch (_) { msg.textContent = url; }
   });
   window.addEventListener("hashchange", openFromHash);
+  $("helpBtn").addEventListener("click", () => {
+    const d = $("help");
+    try { d.showModal(); } catch (_) { d.setAttribute("open", ""); }
+  });
+  $("helpClose").addEventListener("click", () => $("help").close());
+  $("help").addEventListener("click", (e) => { if (e.target === $("help")) $("help").close(); });
 
   const byId = (id) => state.all.find((b) => b.id === id);
   function openFromHash() {

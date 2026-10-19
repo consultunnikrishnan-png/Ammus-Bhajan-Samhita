@@ -194,3 +194,15 @@ svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-
 .row-play.saved::after { position: absolute; top: -1px; right: -1px; }
 .legend .dot { display: inline-block; vertical-align: middle; margin-right: .3rem; }
 :root { --saved: #1f9d55; }
+.help-btn {
+  width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); font-weight: 700; font-size: 1.1rem; line-height: 1; display: grid; place-items: center;
+}
+.help h2 { margin: 0; }
+.help-list { margin: .75rem 0 0; padding-left: 1.1rem; display: grid; gap: .6rem; line-height: 1.5; }
+.help-list .dot { display: inline-block; vertical-align: middle; width: .6rem; height: .6rem; border-radius: 50%; background: var(--saved); }
+.top { align-items: flex-start; gap: .5rem 1rem; }
+.brand { flex: 1 1 14rem; }
+.brand h1 { font-size: clamp(1.3rem, 6vw, 1.75rem); }
+.help-btn { flex: none; order: 2; }
+.install { order: 3; }
