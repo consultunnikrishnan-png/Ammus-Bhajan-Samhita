@@ -136,7 +136,6 @@
       parts.push(`<span class="tag pending">Pitch to be added</span>`);
     }
     if (b.sample) parts.push(`<span class="tag sample">Sample entry</span>`);
-    if (isSaved(b)) parts.push(`<span class="tag offline">Saved for offline</span>`);
     return parts.join("");
   }
 
@@ -153,8 +152,8 @@
           <span class="row-title">${esc(b.title)}</span>
           <span class="row-meta">${tagsFor(b)}</span>
         </button>
-        <button class="row-play" type="button" data-play="${esc(b.id)}" ${audioUrl(b) ? "" : "disabled"}
-          aria-label="${audioUrl(b) ? "Play " + esc(b.title) : "Recording not added yet"}">${PLAY_ICON}</button>
+        <button class="row-play${isSaved(b) ? " saved" : ""}" type="button" data-play="${esc(b.id)}" ${audioUrl(b) ? "" : "disabled"}
+          aria-label="${audioUrl(b) ? "Play " + esc(b.title) + (isSaved(b) ? " (saved on this phone)" : "") : "Recording not added yet"}">${PLAY_ICON}</button>
       </li>`).join("");
     const empty = $("empty");
     empty.hidden = items.length > 0;
