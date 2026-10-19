@@ -186,3 +186,4 @@ svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-
 .offline-box { margin-top: 1.5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .offline-box p { margin: 0 0 .6rem; color: var(--muted); font-size: .9rem; }
 .offline-box .sheet-msg { margin: .5rem 0 0; }
+.ver { font-size: .75rem; opacity: .7; }

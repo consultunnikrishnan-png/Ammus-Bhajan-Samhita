@@ -1,26 +1,60 @@
-// Keeps the app itself available offline. Songs are saved separately by app.js in the "sai-audio" cache.
-const CACHE = "sai-bhajans-v3";
+// Keeps the app available offline. Songs are saved by app.js in the "sai-audio" cache;
+// this worker also serves them from there, so a saved song plays with no internet.
+const CACHE = "sai-bhajans-v4";
+const AUDIO_CACHE = "sai-audio";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "bhajans.json", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
+    .then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== "sai-audio").map((k) => caches.delete(k))))
+    .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== AUDIO_CACHE).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
+
+// A weak signal can hang for a long time, so give up on the network after a few seconds.
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), ms))]);
+
+// The audio player asks for byte ranges; answer them from the saved copy.
+async function fromAudioCache(req) {
+  const hit = await (await caches.open(AUDIO_CACHE)).match(req.url, { ignoreSearch: true });
+  if (!hit) return null;
+  const range = req.headers.get("range");
+  if (!range) return hit;
+  const buf = await hit.arrayBuffer();
+  const m = /bytes=(\d*)-(\d*)/.exec(range) || [];
+  const start = m[1] ? +m[1] : 0;
+  const end = m[2] ? Math.min(+m[2], buf.byteLength - 1) : buf.byteLength - 1;
+  return new Response(buf.slice(start, end + 1), {
+    status: 206,
+    headers: {
+      "Content-Type": "audio/mpeg",
+      "Content-Range": `bytes ${start}-${end}/${buf.byteLength}`,
+      "Content-Length": String(end - start + 1),
+      "Accept-Ranges": "bytes"
+    }
+  });
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== "GET" || url.origin !== location.origin || /\.mp3$/i.test(url.pathname)) return;
-  // Network first, so new bhajans and pitch details show up as soon as they are published.
+  if (req.method !== "GET" || url.origin !== location.origin) return;
+  if (/\.mp3$/i.test(url.pathname)) {
+    e.respondWith(fromAudioCache(req).then((r) => r || fetch(req)));
+    return;
+  }
+  // Network first (always checking for a newer copy), so new bhajans show up as soon as they are published.
+  const fresh = fetch(req.mode === "navigate" ? req.url : req, { cache: "no-cache" });
   e.respondWith(
-    fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy));
+    withTimeout(fresh, 5000).then((res) => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
-    }).catch(() => caches.match(req, { ignoreSearch: true }).then((r) => r || caches.match("index.html")))
+    }).catch(() => caches.match(req, { ignoreSearch: true })
+      .then((r) => r || (req.mode === "navigate" ? caches.match("./") : Response.error())))
   );
 });

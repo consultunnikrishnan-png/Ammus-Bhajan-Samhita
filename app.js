@@ -410,7 +410,7 @@
   });
   const standalone = window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone;
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) $("iosHint").hidden = false;
-  if ("serviceWorker" in navigator && location.protocol === "https:") {
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   }
 
