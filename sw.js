@@ -1,13 +1,26 @@
 // Keeps the app available offline. Songs are saved by app.js in the "sai-audio" cache;
 // this worker also serves them from there, so a saved song plays with no internet.
-const CACHE = "sai-bhajans-v4";
+const CACHE = "sai-bhajans-v5";
 const AUDIO_CACHE = "sai-audio";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "bhajans.json", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
 
+// Swami's photos are kept with the songs (that cache is never cleared), so they show offline.
+async function savePhotos() {
+  try {
+    const data = await (await fetch("bhajans.json", { cache: "no-cache" })).json();
+    const base = data.site?.photoBase || "photos/";
+    const files = new Set([...(data.site?.photos || []), ...(data.bhajans || []).map((b) => b.photo).filter(Boolean)]);
+    const keep = await caches.open(AUDIO_CACHE);
+    await Promise.all([...files].map(async (f) => {
+      if (!(await keep.match(base + f))) await keep.add(base + f);
+    }));
+  } catch (_) {}
+}
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE)
     .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
+    .then(savePhotos)
     .then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
@@ -46,6 +59,14 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET" || url.origin !== location.origin) return;
   if (/\.mp3$/i.test(url.pathname)) {
     e.respondWith(fromAudioCache(req).then((r) => r || fetch(req)));
+    return;
+  }
+  if (/\/photos\//.test(url.pathname)) {
+    // Photos rarely change: use the saved copy, and save any new one the first time it loads.
+    e.respondWith(caches.match(req.url, { ignoreSearch: true }).then((hit) => hit || fetch(req.url).then((res) => {
+      if (res.ok) { const copy = res.clone(); caches.open(AUDIO_CACHE).then((c) => c.put(req.url, copy)); }
+      return res;
+    })));
     return;
   }
   // Network first (always checking for a newer copy), so new bhajans show up as soon as they are published.

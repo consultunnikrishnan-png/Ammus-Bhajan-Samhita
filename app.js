@@ -425,9 +425,9 @@
       if (sub) $("siteSubtitle").textContent = sub;
       renderChips(); renderList(); openFromHash();
       loadSaved().then(() => { renderList(); updateSaveAll(); });
-      // Fetch Swami's photos once so the service worker keeps them for offline use.
+      // Keep Swami's photos on the phone with the saved songs, so they show offline.
       const pics = new Set([...(state.site.photos || []), ...state.all.map((b) => b.photo).filter(Boolean)]);
-      pics.forEach((f) => fetch((state.site.photoBase || "photos/") + f).catch(() => {}));
+      pics.forEach((f) => saveSong((state.site.photoBase || "photos/") + f));
     })
     .catch(() => {
       $("empty").hidden = false;
