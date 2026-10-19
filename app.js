@@ -44,6 +44,47 @@
     return (state.site.audioBase || "") + b.audio;
   };
 
+  // ---------- offline songs ----------
+  // Songs are kept in their own cache: each one is saved the first time it plays with internet,
+  // or when the student taps "Save for offline". Saved songs play from the phone with no internet.
+  const AUDIO_CACHE = "sai-audio";
+  const saved = new Set();
+  const hasCaches = "caches" in window;
+  const abs = (url) => new URL(url, location.href).href;
+  const isSaved = (b) => !!audioUrl(b) && saved.has(abs(audioUrl(b)));
+  async function loadSaved() {
+    if (!hasCaches) return;
+    try {
+      const keys = await (await caches.open(AUDIO_CACHE)).keys();
+      keys.forEach((r) => saved.add(r.url));
+    } catch (_) {}
+  }
+  async function saveSong(url) {
+    if (!hasCaches || !url || saved.has(abs(url))) return true;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return false;
+      await (await caches.open(AUDIO_CACHE)).put(abs(url), res);
+      saved.add(abs(url));
+      navigator.storage?.persist?.().catch(() => {});
+      return true;
+    } catch (_) { return false; }
+  }
+  async function unsaveSong(url) {
+    try { await (await caches.open(AUDIO_CACHE)).delete(abs(url)); } catch (_) {}
+    saved.delete(abs(url));
+  }
+  let objectUrl = null;
+  async function sourceFor(url) {
+    if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+    if (!hasCaches || !saved.has(abs(url))) return url;
+    try {
+      const hit = await (await caches.open(AUDIO_CACHE)).match(abs(url));
+      if (hit) { objectUrl = URL.createObjectURL(await hit.blob()); return objectUrl; }
+    } catch (_) {}
+    return url;
+  }
+
   // ---------- filtering ----------
   // Bhajan names are spelled many ways (Shambho/Shambo, Vittala/Vithale, Sayee/Sai, Sairam/Sai Ram),
   // so search compares a loose spelling: no spaces or "h", w as v, long vowels shortened, doubles merged.
@@ -95,6 +136,7 @@
       parts.push(`<span class="tag pending">Pitch to be added</span>`);
     }
     if (b.sample) parts.push(`<span class="tag sample">Sample entry</span>`);
+    if (isSaved(b)) parts.push(`<span class="tag offline">Saved for offline</span>`);
     return parts.join("");
   }
 
@@ -158,7 +200,7 @@
     $("sheetPlay").textContent = audioUrl(b) ? "Play" : "Recording not added yet";
     $("sheetVersions").innerHTML = (b.versions || []).map((v, i) =>
       `<button class="primary alt" type="button" data-version="${i}">Play ${esc(v.label.toLowerCase())} version</button>`).join("");
-    updateFavBtn();
+    updateFavBtn(); updateOfflineBtn();
     $("sheetMsg").textContent = "";
     $("sheetLyrics").textContent = b.lyrics || "";
     $("sheetNotes").textContent = b.notes || "";
@@ -176,6 +218,14 @@
     if (d.open) d.close();
     if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   }
+  function updateOfflineBtn() {
+    const btn = $("sheetOffline");
+    btn.hidden = !hasCaches || !sheetSong || !audioUrl(sheetSong);
+    if (btn.hidden) return;
+    const on = isSaved(sheetSong);
+    btn.setAttribute("aria-pressed", String(on));
+    btn.textContent = on ? "Saved for offline" : "Save for offline";
+  }
   function updateFavBtn() {
     const on = sheetSong && state.favs.has(sheetSong.id);
     $("sheetFav").setAttribute("aria-pressed", String(!!on));
@@ -184,19 +234,25 @@
 
   // ---------- player ----------
   // `version` is an extra take of the same bhajan, e.g. { label: "Fast", audio: "b052-fast.mp3" }.
-  function play(b, queue, version) {
+  async function play(b, queue, version) {
     const url = version ? audioUrl(version) : audioUrl(b);
     if (!url) return;
     state.queue = (queue || visible()).filter(audioUrl);
     state.current = b;
-    audio.src = url;
-    audio.playbackRate = SPEEDS[state.speedIdx];
-    audio.play().catch(() => {});
     $("player").hidden = false;
     $("npTitle").textContent = version ? `${b.title} (${version.label})` : b.title;
-    $("npMeta").textContent = [b.deity, shruthiText(b.shruthi?.gents) && "Gents " + shruthiText(b.shruthi.gents)].filter(Boolean).join(" · ");
+    const offlineMiss = !navigator.onLine && !saved.has(abs(url));
+    $("npMeta").textContent = offlineMiss
+      ? "No internet. This song plays offline once it has been played or saved with internet."
+      : [b.deity, shruthiText(b.shruthi?.gents) && "Gents " + shruthiText(b.shruthi.gents)].filter(Boolean).join(" · ");
     setMediaSession(b);
     renderList();
+    audio.src = await sourceFor(url);
+    audio.playbackRate = SPEEDS[state.speedIdx];
+    audio.play().catch(() => {});
+    if (!saved.has(abs(url)) && navigator.onLine) {
+      saveSong(url).then((ok) => { if (ok) { renderList(); updateOfflineBtn(); updateSaveAll(); } });
+    }
   }
   function step(dir) {
     if (!state.current || !state.queue.length) return;
@@ -283,6 +339,45 @@
     state.favs.has(sheetSong.id) ? state.favs.delete(sheetSong.id) : state.favs.add(sheetSong.id);
     saveFavs(); updateFavBtn(); renderList();
   });
+  $("sheetOffline").addEventListener("click", async () => {
+    if (!sheetSong) return;
+    const b = sheetSong, urls = [b, ...(b.versions || [])].map(audioUrl).filter(Boolean);
+    const msg = $("sheetMsg");
+    if (isSaved(b)) {
+      await Promise.all(urls.map(unsaveSong));
+      msg.textContent = "Removed from this phone. It will need internet again.";
+    } else {
+      msg.textContent = "Saving…";
+      const ok = (await Promise.all(urls.map(saveSong))).every(Boolean);
+      msg.textContent = ok ? "Saved. This bhajan now plays without internet." : "Could not save. Check your internet or phone storage.";
+    }
+    updateOfflineBtn(); renderList(); updateSaveAll();
+  });
+  $("saveAll").addEventListener("click", async () => {
+    const btn = $("saveAll"), urls = state.all.flatMap((b) => [b, ...(b.versions || [])]).map(audioUrl).filter(Boolean);
+    const todo = urls.filter((u) => !saved.has(abs(u)));
+    btn.disabled = true; savingAll = true;
+    let done = 0, failed = 0;
+    for (const u of todo) {
+      if (!(await saveSong(u))) failed++;
+      done++;
+      btn.textContent = `Saving ${done} of ${todo.length}…`;
+      if (done % 10 === 0) renderList();
+    }
+    savingAll = false; renderList(); updateSaveAll();
+    if (failed) $("saveAllMsg").textContent = `${failed} could not be saved. Check your internet or phone storage, then tap again.`;
+  });
+  let savingAll = false;
+  function updateSaveAll() {
+    const btn = $("saveAll");
+    if (savingAll) return;
+    if (!hasCaches) { $("offlineBox").hidden = true; return; }
+    const urls = state.all.flatMap((b) => [b, ...(b.versions || [])]).map(audioUrl).filter(Boolean);
+    const left = urls.filter((u) => !saved.has(abs(u))).length;
+    btn.disabled = left === 0;
+    btn.textContent = left === 0 ? "All songs saved on this phone" : `Save all ${left} songs for offline (about ${Math.max(1, Math.round(left * 0.75))} MB)`;
+    $("saveAllMsg").textContent = "";
+  }
   $("sheetShare").addEventListener("click", async () => {
     if (!sheetSong) return;
     const url = location.href.split("#")[0] + "#" + sheetSong.id;
@@ -329,6 +424,7 @@
       const sub = state.site.teacher ? `Sung by ${state.site.teacher}` : state.site.subtitle;
       if (sub) $("siteSubtitle").textContent = sub;
       renderChips(); renderList(); openFromHash();
+      loadSaved().then(() => { renderList(); updateSaveAll(); });
     })
     .catch(() => {
       $("empty").hidden = false;

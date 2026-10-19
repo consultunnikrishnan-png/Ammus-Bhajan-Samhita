@@ -47,6 +47,12 @@
   <ul id="list" class="list" aria-live="polite"></ul>
   <p id="empty" class="empty" hidden></p>
 
+  <section id="offlineBox" class="offline-box">
+    <p>Songs you play once stay on this phone and play without internet. You can also save them all now.</p>
+    <button id="saveAll" class="ghost" type="button">Save all songs for offline</button>
+    <p id="saveAllMsg" class="sheet-msg" role="status"></p>
+  </section>
+
   <footer class="foot">
     <p>Reference pitch, raga and beat are from <a href="https://sairhythms.sathyasai.org" target="_blank" rel="noopener">Sai Rhythms</a>. Pitch is the harmonium setting (Pancham or Madhyam) with the note for Sa. Details for more bhajans are being added.</p>
   </footer>
@@ -73,6 +79,7 @@
       <button id="sheetPlay" class="primary" type="button">Play</button>
       <span id="sheetVersions" class="versions"></span>
       <button id="sheetFav" class="ghost" type="button" aria-pressed="false">Add to favourites</button>
+      <button id="sheetOffline" class="ghost" type="button" aria-pressed="false" hidden>Save for offline</button>
       <button id="sheetShare" class="ghost" type="button">Share</button>
     </div>
     <p id="sheetTeacher" class="teacher-pitch" hidden></p>

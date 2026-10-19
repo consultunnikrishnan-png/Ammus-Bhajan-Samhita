@@ -1,5 +1,5 @@
-// Keeps the app itself available offline. Audio streams from its host and is not cached here.
-const CACHE = "sai-bhajans-v2";
+// Keeps the app itself available offline. Songs are saved separately by app.js in the "sai-audio" cache.
+const CACHE = "sai-bhajans-v3";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "bhajans.json", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
 
@@ -8,7 +8,7 @@ self.addEventListener("install", (e) => {
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== "sai-audio").map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", (e) => {
