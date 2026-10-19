@@ -425,6 +425,9 @@
       if (sub) $("siteSubtitle").textContent = sub;
       renderChips(); renderList(); openFromHash();
       loadSaved().then(() => { renderList(); updateSaveAll(); });
+      // Fetch Swami's photos once so the service worker keeps them for offline use.
+      const pics = new Set([...(state.site.photos || []), ...state.all.map((b) => b.photo).filter(Boolean)]);
+      pics.forEach((f) => fetch((state.site.photoBase || "photos/") + f).catch(() => {}));
     })
     .catch(() => {
       $("empty").hidden = false;
