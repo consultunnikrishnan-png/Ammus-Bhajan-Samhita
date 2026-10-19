@@ -206,3 +206,8 @@ svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-
 .brand h1 { font-size: clamp(1.3rem, 6vw, 1.75rem); }
 .help-btn { flex: none; order: 2; }
 .install { order: 3; }
+/* On computers there is no swipe, so let the deity buttons wrap instead of scrolling sideways. */
+@media (min-width: 700px), (hover: hover) and (pointer: fine) {
+  .chips-wrap { overflow: visible; }
+  .chips { flex-wrap: wrap; width: auto; }
+}
