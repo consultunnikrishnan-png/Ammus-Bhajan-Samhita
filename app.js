@@ -426,7 +426,7 @@
       state.site = data.site || {};
       state.all = (data.bhajans || []).slice().sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
       if (state.site.title) { $("siteTitle").textContent = state.site.title; document.title = state.site.title; }
-      const sub = state.site.teacher ? `Sung by ${state.site.teacher}` : state.site.subtitle;
+      const sub = state.site.tagline || (state.site.teacher ? `Sung by ${state.site.teacher}` : state.site.subtitle);
       if (sub) $("siteSubtitle").textContent = sub;
       renderChips(); renderList(); openFromHash();
       loadSaved().then(() => { renderList(); updateSaveAll(); });
